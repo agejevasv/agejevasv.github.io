@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,6 +109,16 @@ func bundleESM(entryPoint string, outfile string) error {
 }
 
 func main() {
+	serve := flag.Bool("s", false, "Start a local server after building")
+	port := flag.String("p", "8080", "Port for the local server")
+	help := flag.Bool("h", false, "Print help")
+	flag.Parse()
+
+	if *help {
+		flag.Usage()
+		return
+	}
+
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		log.Fatalf("Failed to create output directory: %v", err)
 	}
@@ -214,6 +226,12 @@ func main() {
 	generateSitemap()
 
 	log.Println("Build complete!")
+
+	if *serve {
+		addr := "0.0.0.0:" + *port
+		log.Printf("Starting server at http://%s", addr)
+		log.Fatal(http.ListenAndServe(addr, http.FileServer(http.Dir(outDir))))
+	}
 }
 
 func generateVersionFile() {
