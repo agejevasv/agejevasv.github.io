@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPX Gamma Exposure</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            height: 100%;
+            background: #0d1117;
+            color: #e6edf3;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 12px;
+        }
+
+        /* Top bar */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .controls input,
+        .controls select {
+            padding: 6px 10px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #0d1117;
+            color: #e6edf3;
+            font-size: 13px;
+            transition: border-color 0.15s;
+        }
+
+        .controls input { width: 80px; }
+        .controls select { cursor: pointer; }
+        .controls input:focus,
+        .controls select:focus { outline: none; border-color: #1990ff; }
+
+        .controls button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #238636;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .controls button:hover { background: #2ea043; }
+        .controls button:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
+
+        .tabs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid #30363d;
+        }
+
+        .tabs:empty { display: none; }
+
+        .tab {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #8b949e;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .tab:hover { color: #e6edf3; background: #21262d; }
+        .tab.active { color: #e6edf3; background: #1990ff; }
+
+        .timestamp {
+            margin-left: auto;
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        /* Content */
+        #content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .chart-box {
+            flex: 1;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .chart-legend {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 14px;
+            background: rgba(22, 27, 34, 0.95);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            font-size: 13px;
+            backdrop-filter: blur(8px);
+        }
+
+        .chart-legend span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .legend-dot.calls { background: #1990ff; }
+        .legend-dot.puts { background: #ff0f3f; }
+
+        .positive { color: #1990ff; }
+        .negative { color: #ff0f3f; }
+        .muted { color: #6a6d78; }
+
+        /* States */
+        .loading, .error {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        .error { color: #f85149; }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            animation: rotate 1.4s linear infinite;
+        }
+
+        .spinner circle {
+            stroke: #1990ff;
+            stroke-linecap: round;
+            animation: dash 1.4s ease-in-out infinite;
+        }
+
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes dash {
+            0%   { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+            50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+            100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="controls">
+                <input type="text" id="ticker" value="_SPX">
+                <select id="view-mode">
+                    <option value="net">Net</option>
+                    <option value="separate">Separate</option>
+                </select>
+                <button id="fetch-btn">Fetch</button>
+            </div>
+            <div class="tabs" id="tabs"></div>
+            <span class="timestamp" id="timestamp"></span>
+        </div>
+        <div id="content">
+            <div class="loading">Click Fetch to load data</div>
+        </div>
+    </div>
+
+<script>
+const CBOE_API = 'https://cdn.cboe.com/api/global/delayed_quotes/options/{ticker}.json';
+const PROXIES = [
+    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => url
+];
+
+class GEX {
+    constructor(ticker, date) {
+        this.ticker = ticker;
+        this.date = date;
+        this.currentPrice = null;
+        this.timestamp = null;
+        this.lastTradeTime = null;
+        this.options = [];
+        this.options0dte = [];
+    }
+
+    async init() {
+        const quotes = await this.fetchQuotes();
+        this.parseQuotes(quotes);
+        this.calculateExposure();
+        return this;
+    }
+
+    async fetchQuotes() {
+        const url = CBOE_API.replace('{ticker}', this.ticker);
+
+        for (const proxy of PROXIES) {
+            try {
+                const res = await fetch(proxy(url));
+                if (res.ok) return res.json();
+            } catch {
+                continue;
+            }
+        }
+
+        throw new Error('Failed to fetch data from CBOE');
+    }
+
+    parseQuotes(quotes) {
+        const tkr = this.ticker.replace('_', '');
+
+        this.currentPrice = quotes.data.current_price;
+        this.timestamp = quotes.timestamp;
+        this.lastTradeTime = quotes.data.options
+            .map(o => o.last_trade_time)
+            .filter(Boolean)
+            .sort()
+            .pop() || null;
+
+        this.options = quotes.data.options.map(opt => ({
+            ...opt,
+            type: opt.option.match(/\d([CP])\d/)?.[1] || null,
+            strike: parseInt(opt.option.match(/\d[CP](\d+)\d{3}/)?.[1]) || null
+        }));
+
+        this.options0dte = this.options.filter(opt =>
+            opt.option.startsWith(`${tkr}W${this.date}`) ||
+            opt.option.startsWith(`${tkr}${this.date}`)
+        );
+    }
+
+    calculateExposure() {
+        const calc = item => {
+            const gamma = item.gamma || 0;
+            const multiplier = 100 * this.currentPrice ** 2 * 0.01;
+            const sign = item.type === 'P' ? -1 : 1;
+            return {
+                ...item,
+                gex: gamma * (item.open_interest || 0) * multiplier * sign,
+                vex: gamma * (item.volume || 0) * multiplier * sign
+            };
+        };
+
+        this.options = this.options.map(calc);
+        this.options0dte = this.options0dte.map(calc);
+    }
+
+    getByStrike(field, mode) {
+        const lower = this.currentPrice * 0.92;
+        const upper = this.currentPrice * 1.08;
+
+        if (mode === 'net') {
+            const net = {};
+            for (const item of this.options0dte) {
+                if (item.strike < lower || item.strike > upper) continue;
+                net[item.strike] = (net[item.strike] || 0) + (item[field] || 0) / 1e9;
+            }
+            return {
+                net: Object.entries(net)
+                    .map(([strike, value]) => ({ strike: +strike, value }))
+                    .sort((a, b) => a.strike - b.strike)
+            };
+        }
+
+        const calls = {}, puts = {};
+        for (const item of this.options0dte) {
+            if (item.strike < lower || item.strike > upper) continue;
+            const value = Math.abs(item[field] || 0) / 1e9;
+            if (item.type === 'C') calls[item.strike] = (calls[item.strike] || 0) + value;
+            if (item.type === 'P') puts[item.strike] = (puts[item.strike] || 0) + value;
+        }
+
+        const toArray = (obj, sign) => Object.entries(obj)
+            .map(([strike, value]) => ({ strike: +strike, value: value * sign }))
+            .sort((a, b) => a.strike - b.strike);
+
+        return { calls: toArray(calls, 1), puts: toArray(puts, -1) };
+    }
+
+    getSummary(mode) {
+        const price = this.currentPrice;
+
+        if (mode === 'net') {
+            const sum = (field, cond) => this.options0dte
+                .filter(i => !cond || cond(i))
+                .reduce((s, i) => s + (i[field] || 0), 0) / 1e9;
+
+            return {
+                gex0dte: {
+                    total: sum('gex'),
+                    below: sum('gex', i => i.strike < price),
+                    above: sum('gex', i => i.strike >= price)
+                },
+                vex0dte: {
+                    total: sum('vex'),
+                    below: sum('vex', i => i.strike < price),
+                    above: sum('vex', i => i.strike >= price)
+                }
+            };
+        }
+
+        const sumBy = (field, type) => this.options0dte
+            .filter(i => i.type === type)
+            .reduce((s, i) => s + Math.abs(i[field] || 0), 0) / 1e9;
+
+        return {
+            gex0dte: { calls: sumBy('gex', 'C'), puts: sumBy('gex', 'P') },
+            vex0dte: { calls: sumBy('vex', 'C'), puts: sumBy('vex', 'P') }
+        };
+    }
+}
+
+class StrikeChart {
+    constructor(container) {
+        this.container = container;
+        this.chart = null;
+        this.strikes = [];
+        this.strikeIdx = {};
+        this.markerSeries = null;
+
+        this.preserveLegend();
+        this.setupResizeObserver();
+    }
+
+    preserveLegend() {
+        this.legend = this.container.querySelector('.chart-legend');
+        this.container.innerHTML = '';
+        if (this.legend) this.container.appendChild(this.legend);
+    }
+
+    setupResizeObserver() {
+        new ResizeObserver(() => {
+            if (this.chart) {
+                this.chart.applyOptions({
+                    width: this.container.clientWidth,
+                    height: this.container.clientHeight
+                });
+            }
+        }).observe(this.container);
+    }
+
+    createChart() {
+        this.chart = LightweightCharts.createChart(this.container, {
+            layout: { background: { color: '#161b22' }, textColor: '#8b949e' },
+            grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+            width: this.container.clientWidth,
+            height: this.container.clientHeight || 640,
+            rightPriceScale: { borderColor: '#30363d', scaleMargins: { top: 0.05, bottom: 0.05 } },
+            timeScale: {
+                borderColor: '#30363d',
+                tickMarkFormatter: i => this.strikes[i]?.toString() || ''
+            },
+            localization: { timeFormatter: i => this.strikes[i]?.toString() || '' },
+            crosshair: {
+                horzLine: { color: '#8b949e', labelBackgroundColor: '#30363d' },
+                vertLine: { color: '#8b949e', labelBackgroundColor: '#30363d', labelVisible: true }
+            }
+        });
+    }
+
+    buildStrikeIndex(data, mode) {
+        const allData = mode === 'net' ? data.net : [...data.calls, ...data.puts];
+        this.strikes = [...new Set(allData.map(d => d.strike))].sort((a, b) => a - b);
+        this.strikeIdx = Object.fromEntries(this.strikes.map((s, i) => [s, i]));
+        this.allData = allData;
+    }
+
+    setData(data, mode) {
+        this.buildStrikeIndex(data, mode);
+        this.createChart();
+        mode === 'net' ? this.setNetData(data.net) : this.setCallsPutsData(data);
+    }
+
+    histogramOpts(color) {
+        return {
+            color,
+            priceFormat: { type: 'custom', formatter: p => p.toFixed(2) + 'B' },
+            priceScaleId: 'right',
+            lastValueVisible: false
+        };
+    }
+
+    setNetData(data) {
+        this.markerSeries = this.chart.addHistogramSeries(this.histogramOpts());
+        this.markerSeries.setData(data.map(d => ({
+            time: this.strikeIdx[d.strike],
+            value: d.value,
+            color: d.value >= 0 ? '#1990ff' : '#ff0f3f'
+        })));
+    }
+
+    setCallsPutsData(data) {
+        const callSeries = this.chart.addHistogramSeries(this.histogramOpts('#1990ff'));
+        const putSeries = this.chart.addHistogramSeries(this.histogramOpts('#ff0f3f'));
+
+        callSeries.setData(data.calls.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
+        putSeries.setData(data.puts.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
+
+        this.markerSeries = callSeries;
+    }
+
+    centerOnStrike(strikeIdx) {
+        this.chart.timeScale().setVisibleRange({
+            from: Math.max(0, strikeIdx - 250),
+            to: Math.min(this.strikes.length - 1, strikeIdx + 250)
+        });
+    }
+
+    addVerticalLine(strikeIdx) {
+        const priceLine = this.chart.addLineSeries({
+            color: '#ffffff',
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+            priceScaleId: 'price-marker'
+        });
+        this.chart.priceScale('price-marker').applyOptions({ visible: false });
+
+        const maxVal = Math.max(...this.allData.map(d => Math.abs(d.value)), 0.1);
+        priceLine.setData([
+            { time: strikeIdx, value: -maxVal },
+            { time: strikeIdx, value: maxVal }
+        ]);
+    }
+
+    addPriceMarker(price) {
+        if (!price || !this.strikes.length) return;
+
+        const closest = this.strikes.reduce((a, b) =>
+            Math.abs(b - price) < Math.abs(a - price) ? b : a
+        );
+        const idx = this.strikeIdx[closest];
+
+        this.centerOnStrike(idx);
+        this.addVerticalLine(idx);
+
+        this.markerSeries.setMarkers([{
+            time: idx,
+            position: 'aboveBar',
+            color: '#ffffff',
+            shape: 'arrowDown',
+            text: price.toFixed(0),
+            size: 2
+        }]);
+    }
+}
+
+function createChart(container, data, currentPrice, mode) {
+    const chart = new StrikeChart(container);
+    chart.setData(data, mode);
+    chart.addPriceMarker(currentPrice);
+    return chart;
+}
+
+function formatTimestamp(str, toLocal = false) {
+    const date = new Date(str.replace(' ', 'T') + '-05:00');
+    const formatted = date.toLocaleString('sv').replace('T', ' ');
+    if (!toLocal) return formatted;
+
+    const offset = -date.getTimezoneOffset();
+    const h = Math.floor(Math.abs(offset) / 60);
+    const m = Math.abs(offset) % 60;
+    const tz = `UTC${offset >= 0 ? '+' : '-'}${h}${m ? ':' + String(m).padStart(2, '0') : ''}`;
+    return `${formatted} ${tz}`;
+}
+
+function getTradingDay() {
+    const d = new Date();
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+    if (d.getDay() === 6) d.setDate(d.getDate() + 2);
+    return d.toISOString().slice(2, 10).replace(/-/g, '');
+}
+
+function renderDashboard(gex, mode) {
+    const summary = gex.getSummary(mode);
+    const fmt = n => (n >= 0 ? '+' : '') + n.toFixed(2);
+    const cls = n => n >= 0 ? 'positive' : 'negative';
+    const lastTrade = gex.lastTradeTime ? formatTimestamp(gex.lastTradeTime, true) : 'N/A';
+
+    document.getElementById('tabs').innerHTML = `
+        <button class="tab active" data-tab="oi">GEX (Open Interest)</button>
+        <button class="tab" data-tab="vol">GEX (Volume)</button>
+    `;
+    document.getElementById('timestamp').textContent =
+        `CBOE: ${gex.timestamp} ET | Local: ${formatTimestamp(gex.timestamp, true)}`;
+
+    const legend = (data) => mode === 'net'
+        ? `<div class="chart-legend">
+            <span><div class="legend-dot calls"></div> Positive</span>
+            <span><div class="legend-dot puts"></div> Negative</span>
+            <span class="${cls(data.total)}" style="margin-left:auto;font-weight:600">${fmt(data.total)}B</span>
+            <span class="muted">(${fmt(data.below)} / ${fmt(data.above)})</span>
+            <span class="muted" style="margin-left:12px">Last trade: ${lastTrade}</span>
+           </div>`
+        : `<div class="chart-legend">
+            <span><div class="legend-dot calls"></div> Calls</span>
+            <span><div class="legend-dot puts"></div> Puts</span>
+            <span class="positive" style="margin-left:auto;font-weight:600">+${data.calls.toFixed(2)}B</span>
+            <span class="negative" style="font-weight:600">-${data.puts.toFixed(2)}B</span>
+            <span class="muted" style="margin-left:12px">Last trade: ${lastTrade}</span>
+           </div>`;
+
+    document.getElementById('content').innerHTML = `
+        <div class="tab-content active" id="tab-oi">
+            <div class="chart-container">
+                <div class="chart-box" id="chart-oi">${legend(summary.gex0dte)}</div>
+            </div>
+        </div>
+        <div class="tab-content" id="tab-vol">
+            <div class="chart-container">
+                <div class="chart-box" id="chart-vol">${legend(summary.vex0dte)}</div>
+            </div>
+        </div>
+    `;
+
+    const gexData = gex.getByStrike('gex', mode);
+    const vexData = gex.getByStrike('vex', mode);
+
+    createChart(document.getElementById('chart-oi'), gexData, gex.currentPrice, mode);
+
+    let volChartCreated = false;
+    document.querySelectorAll('#tabs .tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('#tabs .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+            if (tab.dataset.tab === 'vol' && !volChartCreated) {
+                createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
+                volChartCreated = true;
+            }
+        });
+    });
+}
+
+let currentGex = null;
+
+async function fetchAndRender() {
+    const btn = document.getElementById('fetch-btn');
+    const ticker = document.getElementById('ticker').value.trim() || '_SPX';
+    const mode = document.getElementById('view-mode').value;
+
+    document.getElementById('content').innerHTML = `
+        <div class="loading">
+            <svg class="spinner" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+            </svg>
+        </div>
+    `;
+    btn.disabled = true;
+
+    try {
+        currentGex = await new GEX(ticker, getTradingDay()).init();
+        renderDashboard(currentGex, mode);
+    } catch (err) {
+        document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function onModeChange() {
+    if (currentGex) {
+        renderDashboard(currentGex, document.getElementById('view-mode').value);
+    }
+}
+
+document.getElementById('fetch-btn').addEventListener('click', fetchAndRender);
+document.getElementById('view-mode').addEventListener('change', onModeChange);
+</script>
+</body>
+</html>

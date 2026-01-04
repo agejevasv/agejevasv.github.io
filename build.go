@@ -47,6 +47,7 @@ var pages = []struct {
 
 var staticFiles = []string{
 	"static/github-download-stats.html",
+	"static/gex.html",
 	"static/google2fe609a678bc07c0.html",
 }
 
