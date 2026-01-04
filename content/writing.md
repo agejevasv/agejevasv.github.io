@@ -6,7 +6,7 @@
 
 ---
 
-### A Note to the Reader
+## A Note to the Reader
 
 This is a disjointed collection of my meditations on life, mostly in aphoristic form. After reading, some would ask, "Why publish it at all?" and I would answer, "Why not?"
 
