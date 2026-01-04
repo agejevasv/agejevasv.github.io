@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
@@ -9,6 +10,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/evanw/esbuild/pkg/api"
+	"github.com/tdewolff/minify/v2"
+	"github.com/tdewolff/minify/v2/css"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -22,6 +26,7 @@ type Page struct {
 	Description string
 	Active      string
 	Content     template.HTML
+	InlineCSS   template.CSS
 }
 
 var pages = []struct {
@@ -41,10 +46,96 @@ var staticFiles = []string{
 	"templates/github-download-stats.html",
 }
 
+func minifyCSS(input string) (string, error) {
+	m := minify.New()
+	m.AddFunc("text/css", css.Minify)
+	return m.String("text/css", input)
+}
+
+func bundleJS(entryPoints []string, outfile string) error {
+	var combined bytes.Buffer
+	for _, entry := range entryPoints {
+		content, err := os.ReadFile(entry)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", entry, err)
+		}
+		combined.Write(content)
+		combined.WriteString("\n")
+	}
+
+	result := api.Transform(combined.String(), api.TransformOptions{
+		MinifyWhitespace:  true,
+		MinifyIdentifiers: true,
+		MinifySyntax:      true,
+		Target:            api.ES2020,
+	})
+
+	if len(result.Errors) > 0 {
+		for _, msg := range result.Errors {
+			log.Printf("esbuild error: %s", msg.Text)
+		}
+		return fmt.Errorf("esbuild: %s", result.Errors[0].Text)
+	}
+
+	return os.WriteFile(outfile, result.Code, 0644)
+}
+
+func bundleESM(entryPoint string, outfile string) error {
+	result := api.Build(api.BuildOptions{
+		EntryPoints:       []string{entryPoint},
+		Bundle:            true,
+		MinifyWhitespace:  true,
+		MinifyIdentifiers: true,
+		MinifySyntax:      true,
+		Outfile:           outfile,
+		Write:             true,
+		Format:            api.FormatESModule,
+		Target:            api.ES2020,
+	})
+
+	if len(result.Errors) > 0 {
+		for _, msg := range result.Errors {
+			log.Printf("esbuild error: %s", msg.Text)
+		}
+		return fmt.Errorf("esbuild: %s", result.Errors[0].Text)
+	}
+	return nil
+}
+
 func main() {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		log.Fatalf("Failed to create output directory: %v", err)
 	}
+
+	cssContent, err := os.ReadFile("css/styles.css")
+	if err != nil {
+		log.Fatalf("Failed to read CSS: %v", err)
+	}
+	minifiedCSS, err := minifyCSS(string(cssContent))
+	if err != nil {
+		log.Fatalf("Failed to minify CSS: %v", err)
+	}
+	log.Printf("Minified CSS: %d → %d bytes (%.0f%% reduction)",
+		len(cssContent), len(minifiedCSS),
+		(1-float64(len(minifiedCSS))/float64(len(cssContent)))*100)
+
+	if err := os.MkdirAll(filepath.Join(outDir, "js"), 0755); err != nil {
+		log.Fatalf("Failed to create js directory: %v", err)
+	}
+
+	if err := bundleJS([]string{"js/index.js", "js/animation.js"}, filepath.Join(outDir, "js/bundle.js")); err != nil {
+		log.Fatalf("Failed to bundle main JS: %v", err)
+	}
+	log.Printf("Bundled js/index.js + js/animation.js → js/bundle.js")
+
+	// ESM format required for dynamic import()
+	if err := os.MkdirAll(filepath.Join(outDir, "js/pixijs"), 0755); err != nil {
+		log.Fatalf("Failed to create js/pixijs directory: %v", err)
+	}
+	if err := bundleESM("js/pixijs/app.js", filepath.Join(outDir, "js/pixijs/app.js")); err != nil {
+		log.Fatalf("Failed to bundle pixijs app: %v", err)
+	}
+	log.Printf("Bundled js/pixijs/*.js → js/pixijs/app.js")
 
 	md := goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
@@ -84,6 +175,7 @@ func main() {
 			Description: p.Description,
 			Active:      p.Active,
 			Content:     template.HTML(htmlContent.String()),
+			InlineCSS:   template.CSS(minifiedCSS),
 		}
 
 		outPath := filepath.Join(outDir, p.Output)
@@ -109,12 +201,10 @@ func main() {
 		log.Printf("Copied %s", dst)
 	}
 
-	for _, dir := range []string{"js", "css", "fonts"} {
-		if err := copyDir(dir, filepath.Join(outDir, dir)); err != nil {
-			log.Fatalf("Failed to copy %s directory: %v", dir, err)
-		}
-		log.Printf("Copied %s/", dir)
+	if err := copyDir("fonts", filepath.Join(outDir, "fonts")); err != nil {
+		log.Fatalf("Failed to copy fonts directory: %v", err)
 	}
+	log.Printf("Copied fonts/")
 
 	generateVersionFile()
 
