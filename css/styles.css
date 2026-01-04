@@ -289,7 +289,11 @@ body.fonts-loaded {
 .iframe-wrapper {
     overflow: hidden;
     border-radius: 8px;
-    height: 144px;
+    height: 565px;
+}
+
+.iframe-wrapper iframe {
+    filter: invert(0.9);
 }
 
 .genre {
@@ -307,17 +311,6 @@ body.fonts-loaded {
     vertical-align: middle;
     position: relative;
     top: -0.1em;
-}
-
-.iframe-wrapper iframe {
-    filter: invert(0.9);
-}
-
-@media (min-width: 769px) {
-    .iframe-wrapper iframe {
-        margin-left: -160px;
-        width: calc(100% + 160px);
-    }
 }
 
 .markdown-content table {

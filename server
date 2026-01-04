@@ -1,0 +1,2 @@
+#!/bin/sh
+watchexec -r -e html,css,js,md,go -- go run build.go -s

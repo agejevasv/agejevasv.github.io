@@ -230,7 +230,18 @@ func main() {
 	if *serve {
 		addr := "0.0.0.0:" + *port
 		log.Printf("Starting server at http://%s", addr)
-		log.Fatal(http.ListenAndServe(addr, http.FileServer(http.Dir(outDir))))
+		log.Fatal(http.ListenAndServe(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := r.URL.Path
+			// Serve /foo as /foo.html
+			if path != "/" && filepath.Ext(path) == "" {
+				htmlPath := filepath.Join(outDir, path+".html")
+				if _, err := os.Stat(htmlPath); err == nil {
+					http.ServeFile(w, r, htmlPath)
+					return
+				}
+			}
+			http.FileServer(http.Dir(outDir)).ServeHTTP(w, r)
+		})))
 	}
 }
 
