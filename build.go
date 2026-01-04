@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/evanw/esbuild/pkg/api"
@@ -19,7 +20,7 @@ import (
 	"github.com/yuin/goldmark/renderer/html"
 )
 
-const outDir = "docs"
+const outDir = "build"
 
 type Page struct {
 	Title       string
@@ -45,8 +46,9 @@ var pages = []struct {
 var staticFiles = []string{
 	"static/github-download-stats.html",
 	"static/google2fe609a678bc07c0.html",
-	"static/sitemap.txt",
 }
+
+const siteURL = "https://agejevasv.github.io"
 
 func minifyCSS(input string) (string, error) {
 	m := minify.New()
@@ -209,6 +211,7 @@ func main() {
 	log.Printf("Copied fonts/")
 
 	generateVersionFile()
+	generateSitemap()
 
 	log.Println("Build complete!")
 }
@@ -223,6 +226,25 @@ func generateVersionFile() {
 	}
 
 	log.Printf("Generated %s", versionPath)
+}
+
+func generateSitemap() {
+	var sitemap bytes.Buffer
+	for _, p := range pages {
+		url := siteURL + "/"
+		if p.Output != "index.html" {
+			url += strings.TrimSuffix(p.Output, ".html")
+		}
+		sitemap.WriteString(url + "\n")
+	}
+
+	sitemapPath := filepath.Join(outDir, "sitemap.txt")
+	if err := os.WriteFile(sitemapPath, sitemap.Bytes(), 0644); err != nil {
+		log.Printf("Warning: Failed to write sitemap.txt: %v", err)
+		return
+	}
+
+	log.Printf("Generated %s", sitemapPath)
 }
 
 func copyFile(src, dst string) error {
