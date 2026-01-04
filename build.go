@@ -45,6 +45,7 @@ var pages = []struct {
 var staticFiles = []string{
 	"static/github-download-stats.html",
 	"static/google2fe609a678bc07c0.html",
+	"static/sitemap.txt",
 }
 
 func minifyCSS(input string) (string, error) {
