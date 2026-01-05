@@ -738,14 +738,17 @@ function getViewMode() {
 }
 
 function renderDashboard(gex, mode) {
+    activeCharts = { oi: null, vol: null };
+
     const summary = gex.getSummary(mode);
     const fmt = n => (n >= 0 ? '+' : '') + n.toFixed(2);
     const cls = n => n >= 0 ? 'positive' : 'negative';
 
-    // Update both desktop and mobile tabs
+    // Preserve current tab selection
+    const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'oi';
     const tabsHtml = `
-        <button class="tab active" data-tab="oi">OI</button>
-        <button class="tab" data-tab="vol">Vol</button>
+        <button class="tab${activeTab === 'oi' ? ' active' : ''}" data-tab="oi">OI</button>
+        <button class="tab${activeTab === 'vol' ? ' active' : ''}" data-tab="vol">Vol</button>
     `;
     document.getElementById('tabs').innerHTML = tabsHtml;
     document.getElementById('tabs-mobile').innerHTML = tabsHtml;
@@ -786,44 +789,41 @@ function renderDashboard(gex, mode) {
            </div>`;
 
     document.getElementById('content').innerHTML = `
-        <div class="tab-content active" id="tab-oi">
+        <div class="tab-content${activeTab === 'oi' ? ' active' : ''}" id="tab-oi">
             <div class="chart-container">
                 <div class="chart-box" id="chart-oi">${legend(summary.gex0dte)}</div>
             </div>
         </div>
-        <div class="tab-content" id="tab-vol">
+        <div class="tab-content${activeTab === 'vol' ? ' active' : ''}" id="tab-vol">
             <div class="chart-container">
                 <div class="chart-box" id="chart-vol">${legend(summary.vex0dte)}</div>
             </div>
         </div>
     `;
 
-    const gexData = gex.getByStrike('gex', mode);
-    const vexData = gex.getByStrike('vex', mode);
+    const chartData = {
+        oi: gex.getByStrike('gex', mode),
+        vol: gex.getByStrike('vex', mode)
+    };
 
-    activeCharts.oi = createChart(document.getElementById('chart-oi'), gexData, gex.currentPrice, mode);
-
-    let volChartCreated = false;
-
-    function switchTab(tabName) {
-        // Sync both desktop and mobile tabs
-        document.querySelectorAll('.tabs .tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === tabName);
-        });
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.getElementById('tab-' + tabName).classList.add('active');
-
-        if (tabName === 'vol' && !volChartCreated) {
-            activeCharts.vol = createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
-            volChartCreated = true;
+    const createChartIfNeeded = tab => {
+        if (!activeCharts[tab]) {
+            activeCharts[tab] = createChart(document.getElementById(`chart-${tab}`), chartData[tab], gex.currentPrice, mode);
         }
-    }
+        return activeCharts[tab];
+    };
 
-    // Add listeners to both desktop and mobile tabs
-    document.querySelectorAll('.tabs').forEach(tabsContainer => {
-        tabsContainer.addEventListener('click', e => {
-            const tab = e.target.closest('.tab');
-            if (tab) switchTab(tab.dataset.tab);
+    createChartIfNeeded(activeTab);
+
+    document.querySelectorAll('.tabs').forEach(tabs => {
+        tabs.addEventListener('click', e => {
+            const tab = e.target.closest('.tab')?.dataset.tab;
+            if (!tab) return;
+
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+
+            createChartIfNeeded(tab).recenter();
         });
     });
 
