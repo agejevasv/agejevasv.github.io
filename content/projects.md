@@ -44,7 +44,7 @@ A simple tool to check download statistics for GitHub releases.
 
 ## SPX Gamma Exposure (GEX)
 
-0DTE gamma exposure visualization tool for SPX options. Fetches data from CBOE (15 min delay) and displays GEX by strike price using interactive charts.
+SPX 0DTE gamma exposure chart. Fetches data from CBOE (15 min delay) and displays GEX by strike price.
 
 - [View](https://agejevasv.github.io/gex)
 
