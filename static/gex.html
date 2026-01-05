@@ -50,6 +50,115 @@
             color: #8b949e;
         }
 
+        /* Mobile menu button */
+        #menu-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #21262d;
+            color: #e6edf3;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        #menu-btn:hover { background: #30363d; }
+
+        /* Mobile dropdown menu */
+        .mobile-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            padding: 12px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            z-index: 100;
+            min-width: 200px;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mobile-menu.open { display: flex; }
+
+        .mobile-menu .menu-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-menu .menu-label {
+            font-size: 11px;
+            color: #8b949e;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .mobile-menu .timestamp {
+            font-size: 11px;
+            margin-left: 0;
+            word-break: break-word;
+        }
+
+        /* Desktop controls wrapper */
+        .desktop-controls {
+            display: contents;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .top-bar {
+                position: relative;
+            }
+
+            .desktop-controls {
+                display: none;
+            }
+
+            #menu-btn {
+                display: flex;
+            }
+
+            .chart-box {
+                min-height: 300px;
+            }
+        }
+
+        /* Mobile-only buttons in top bar */
+        .mobile-only {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .mobile-only {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                background: #21262d;
+                color: #e6edf3;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+
+            .mobile-only:hover { background: #30363d; border-color: #8b949e; }
+            .mobile-only:disabled { background: #161b22; color: #484f58; cursor: not-allowed; border-color: #21262d; }
+        }
+
         .tabs,
         .segmented {
             display: flex;
@@ -156,6 +265,21 @@
             gap: 6px;
         }
 
+        .chart-legend .legend-labels {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chart-legend .legend-values {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .chart-legend .legend-time {
+            margin-left: 12px;
+        }
+
         .legend-dot {
             width: 12px;
             height: 12px;
@@ -168,6 +292,56 @@
         .positive { color: #1990ff; }
         .negative { color: #ff0f3f; }
         .muted { color: #6a6d78; }
+
+        @media (max-width: 640px) {
+            .chart-legend {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+                padding: 8px 10px;
+                padding-right: 36px;
+                font-size: 11px;
+                transition: transform 0.3s ease;
+            }
+
+            .chart-legend.collapsed {
+                transform: translateX(calc(-100% + 20px));
+            }
+
+            .chart-legend .legend-values {
+                margin-left: 0;
+            }
+
+            .chart-legend .legend-time {
+                margin-left: 0;
+                font-size: 10px;
+            }
+
+            .legend-toggle {
+                display: flex;
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 24px;
+                height: 32px;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: #8b949e;
+                transition: transform 0.3s ease;
+            }
+
+            .chart-legend.collapsed .legend-toggle {
+                transform: translateY(-50%) rotate(180deg);
+            }
+        }
+
+        @media (min-width: 641px) {
+            .legend-toggle {
+                display: none;
+            }
+        }
 
         .loading,
         .error {
@@ -222,14 +396,38 @@
     <div class="container">
         <div class="top-bar">
             <span class="title">SPX GEX</span>
-            <div class="tabs" id="tabs"></div>
-            <span class="separator"></span>
-            <div class="segmented" id="view-mode">
-                <button class="seg active" data-value="net">Net</button>
-                <button class="seg" data-value="separate">Calls/Puts</button>
+
+            <!-- Desktop controls -->
+            <div class="desktop-controls">
+                <div class="tabs" id="tabs"></div>
+                <span class="separator"></span>
+                <div class="segmented" id="view-mode">
+                    <button class="seg active" data-value="net">Net</button>
+                    <button class="seg" data-value="separate">Calls/Puts</button>
+                </div>
+                <span class="separator"></span>
+                <button id="center-btn" title="Center on current price">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="8"></circle>
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                    </svg>
+                </button>
+                <button id="fetch-btn" title="Refresh data">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                </button>
+                <span class="timestamp" id="timestamp"></span>
             </div>
-            <span class="separator"></span>
-            <button id="center-btn" title="Center on current price">
+
+            <!-- Mobile controls -->
+            <button id="center-btn-mobile" class="mobile-only" title="Center on current price">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="8"></circle>
                     <line x1="12" y1="2" x2="12" y2="6"></line>
@@ -238,7 +436,7 @@
                     <line x1="18" y1="12" x2="22" y2="12"></line>
                 </svg>
             </button>
-            <button id="fetch-btn" title="Refresh data">
+            <button id="fetch-btn-mobile" class="mobile-only" title="Refresh data">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 2v6h-6"></path>
                     <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
@@ -246,7 +444,32 @@
                     <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
                 </svg>
             </button>
-            <span class="timestamp" id="timestamp"></span>
+            <button id="menu-btn" title="Menu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+
+            <!-- Mobile dropdown menu -->
+            <div class="mobile-menu" id="mobile-menu">
+                <div>
+                    <div class="menu-label">Data</div>
+                    <div class="tabs" id="tabs-mobile"></div>
+                </div>
+                <div>
+                    <div class="menu-label">View</div>
+                    <div class="segmented" id="view-mode-mobile">
+                        <button class="seg active" data-value="net">Net</button>
+                        <button class="seg" data-value="separate">Calls/Puts</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="menu-label">Updated</div>
+                    <span class="timestamp" id="timestamp-mobile"></span>
+                </div>
+            </div>
         </div>
         <div id="content">
             <div class="loading">Loading...</div>
@@ -254,12 +477,7 @@
     </div>
 
 <script>
-const CBOE_API = 'https://cdn.cboe.com/api/global/delayed_quotes/options/{ticker}.json';
-const PROXIES = [
-    url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => url
-];
+const WORKER_URL = 'https://gex.v-agejevas.workers.dev';
 
 class GEX {
     constructor(ticker, date) {
@@ -280,18 +498,9 @@ class GEX {
     }
 
     async fetchQuotes() {
-        const url = CBOE_API.replace('{ticker}', this.ticker);
-
-        for (const proxy of PROXIES) {
-            try {
-                const res = await fetch(proxy(url));
-                if (res.ok) return res.json();
-            } catch {
-                continue;
-            }
-        }
-
-        throw new Error('Failed to fetch data from CBOE');
+        const res = await fetch(`${WORKER_URL}/${this.ticker}`);
+        if (!res.ok) throw new Error(`Failed to fetch data (${res.status})`);
+        return res.json();
     }
 
     parseQuotes(quotes) {
@@ -589,27 +798,46 @@ function renderDashboard(gex, mode) {
     const cls = n => n >= 0 ? 'positive' : 'negative';
     const lastTrade = gex.lastTradeTime ? formatTimestamp(gex.lastTradeTime, true) : 'N/A';
 
-    document.getElementById('tabs').innerHTML = `
-        <button class="tab active" data-tab="oi">By Open Interest</button>
-        <button class="tab" data-tab="vol">By Volume</button>
+    // Update both desktop and mobile tabs
+    const tabsHtml = `
+        <button class="tab active" data-tab="oi">OI</button>
+        <button class="tab" data-tab="vol">Vol</button>
     `;
-    document.getElementById('timestamp').textContent =
-        `CBOE: ${gex.timestamp} ET | Local: ${formatTimestamp(gex.timestamp, true)}`;
+    document.getElementById('tabs').innerHTML = tabsHtml;
+    document.getElementById('tabs-mobile').innerHTML = tabsHtml;
+
+    // Update both timestamps
+    const tsDesktop = `CBOE: ${gex.timestamp} ET | Local: ${formatTimestamp(gex.timestamp, true)}`;
+    const tsMobile = formatTimestamp(gex.timestamp, true);
+    document.getElementById('timestamp').textContent = tsDesktop;
+    document.getElementById('timestamp-mobile').textContent = tsMobile;
+
+    const toggleBtn = `<div class="legend-toggle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>`;
 
     const legend = data => mode === 'net'
         ? `<div class="chart-legend">
-            <span><div class="legend-dot calls"></div> Positive</span>
-            <span><div class="legend-dot puts"></div> Negative</span>
-            <span class="${cls(data.total)}" style="margin-left:auto;font-weight:600">${fmt(data.total)}B</span>
-            <span class="muted">(${fmt(data.below)} / ${fmt(data.above)})</span>
-            <span class="muted" style="margin-left:12px">Last trade: ${lastTrade}</span>
+            <div class="legend-labels">
+                <span><div class="legend-dot calls"></div> Positive</span>
+                <span><div class="legend-dot puts"></div> Negative</span>
+            </div>
+            <div class="legend-values">
+                <span class="${cls(data.total)}" style="font-weight:600">${fmt(data.total)}B</span>
+                <span class="muted">(${fmt(data.below)} / ${fmt(data.above)})</span>
+            </div>
+            <span class="muted legend-time">Last: ${lastTrade}</span>
+            ${toggleBtn}
            </div>`
         : `<div class="chart-legend">
-            <span><div class="legend-dot calls"></div> Calls</span>
-            <span><div class="legend-dot puts"></div> Puts</span>
-            <span class="positive" style="margin-left:auto;font-weight:600">+${data.calls.toFixed(2)}B</span>
-            <span class="negative" style="font-weight:600">-${data.puts.toFixed(2)}B</span>
-            <span class="muted" style="margin-left:12px">Last trade: ${lastTrade}</span>
+            <div class="legend-labels">
+                <span><div class="legend-dot calls"></div> Calls</span>
+                <span><div class="legend-dot puts"></div> Puts</span>
+            </div>
+            <div class="legend-values">
+                <span class="positive" style="font-weight:600">+${data.calls.toFixed(2)}B</span>
+                <span class="negative" style="font-weight:600">-${data.puts.toFixed(2)}B</span>
+            </div>
+            <span class="muted legend-time">Last: ${lastTrade}</span>
+            ${toggleBtn}
            </div>`;
 
     document.getElementById('content').innerHTML = `
@@ -631,17 +859,33 @@ function renderDashboard(gex, mode) {
     activeCharts.oi = createChart(document.getElementById('chart-oi'), gexData, gex.currentPrice, mode);
 
     let volChartCreated = false;
-    document.querySelectorAll('#tabs .tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('#tabs .tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
-            if (tab.dataset.tab === 'vol' && !volChartCreated) {
-                activeCharts.vol = createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
-                volChartCreated = true;
-            }
+    function switchTab(tabName) {
+        // Sync both desktop and mobile tabs
+        document.querySelectorAll('.tabs .tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+
+        if (tabName === 'vol' && !volChartCreated) {
+            activeCharts.vol = createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
+            volChartCreated = true;
+        }
+    }
+
+    // Add listeners to both desktop and mobile tabs
+    document.querySelectorAll('.tabs').forEach(tabsContainer => {
+        tabsContainer.addEventListener('click', e => {
+            const tab = e.target.closest('.tab');
+            if (tab) switchTab(tab.dataset.tab);
+        });
+    });
+
+    // Legend toggle for mobile
+    document.querySelectorAll('.legend-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            toggle.closest('.chart-legend').classList.toggle('collapsed');
         });
     });
 }
@@ -658,6 +902,7 @@ function recenterCharts() {
 
 async function fetchAndRender() {
     const btn = document.getElementById('fetch-btn');
+    const btnMobile = document.getElementById('fetch-btn-mobile');
     const mode = getViewMode();
 
     document.getElementById('content').innerHTML = `
@@ -668,6 +913,7 @@ async function fetchAndRender() {
         </div>
     `;
     btn.disabled = true;
+    btnMobile.disabled = true;
 
     try {
         currentGex = await new GEX('_SPX', getTradingDay()).init();
@@ -676,6 +922,7 @@ async function fetchAndRender() {
         document.getElementById('content').innerHTML = `<div class="error">Error: ${err.message}</div>`;
     } finally {
         btn.disabled = false;
+        btnMobile.disabled = false;
     }
 }
 
@@ -685,16 +932,45 @@ function onModeChange() {
     }
 }
 
+// Desktop controls
 document.getElementById('fetch-btn').addEventListener('click', fetchAndRender);
 document.getElementById('center-btn').addEventListener('click', recenterCharts);
 
-document.getElementById('view-mode').addEventListener('click', e => {
+// Mobile controls (in top bar)
+document.getElementById('fetch-btn-mobile').addEventListener('click', fetchAndRender);
+document.getElementById('center-btn-mobile').addEventListener('click', recenterCharts);
+
+// Mobile menu toggle
+document.getElementById('menu-btn').addEventListener('click', () => {
+    document.getElementById('mobile-menu').classList.toggle('open');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', e => {
+    const menu = document.getElementById('mobile-menu');
+    const btn = document.getElementById('menu-btn');
+    if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.remove('open');
+    }
+});
+
+// View mode handlers (sync both desktop and mobile)
+function handleViewModeClick(e) {
     const btn = e.target.closest('.seg');
     if (!btn) return;
-    document.querySelectorAll('#view-mode .seg').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+
+    const value = btn.dataset.value;
+
+    // Sync both desktop and mobile view mode buttons
+    document.querySelectorAll('#view-mode .seg, #view-mode-mobile .seg').forEach(b => {
+        b.classList.toggle('active', b.dataset.value === value);
+    });
+
     onModeChange();
-});
+}
+
+document.getElementById('view-mode').addEventListener('click', handleViewModeClick);
+document.getElementById('view-mode-mobile').addEventListener('click', handleViewModeClick);
 
 fetchAndRender();
 </script>
