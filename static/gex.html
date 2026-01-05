@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPX Gamma Exposure</title>
-    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@5.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -44,12 +44,6 @@
             background: #30363d;
         }
 
-        .timestamp {
-            margin-left: auto;
-            font-size: 12px;
-            color: #8b949e;
-        }
-
         /* Mobile menu button */
         #menu-btn {
             display: none;
@@ -87,23 +81,11 @@
 
         .mobile-menu.open { display: flex; }
 
-        .mobile-menu .menu-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .mobile-menu .menu-label {
             font-size: 11px;
             color: #8b949e;
             text-transform: uppercase;
             margin-bottom: 4px;
-        }
-
-        .mobile-menu .timestamp {
-            font-size: 11px;
-            margin-left: 0;
-            word-break: break-word;
         }
 
         /* Desktop controls wrapper */
@@ -249,14 +231,17 @@
             left: 12px;
             z-index: 10;
             display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 8px 14px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 8px 10px;
+            padding-right: 36px;
             background: rgba(22, 27, 34, 0.95);
             border: 1px solid #30363d;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 11px;
             backdrop-filter: blur(8px);
+            transition: transform 0.3s ease;
         }
 
         .chart-legend span {
@@ -273,11 +258,6 @@
         .chart-legend .legend-values {
             display: flex;
             gap: 8px;
-            margin-left: auto;
-        }
-
-        .chart-legend .legend-time {
-            margin-left: 12px;
         }
 
         .legend-dot {
@@ -293,54 +273,27 @@
         .negative { color: #ff0f3f; }
         .muted { color: #6a6d78; }
 
-        @media (max-width: 640px) {
-            .chart-legend {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 6px;
-                padding: 8px 10px;
-                padding-right: 36px;
-                font-size: 11px;
-                transition: transform 0.3s ease;
-            }
-
-            .chart-legend.collapsed {
-                transform: translateX(calc(-100% + 20px));
-            }
-
-            .chart-legend .legend-values {
-                margin-left: 0;
-            }
-
-            .chart-legend .legend-time {
-                margin-left: 0;
-                font-size: 10px;
-            }
-
-            .legend-toggle {
-                display: flex;
-                position: absolute;
-                right: 8px;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 24px;
-                height: 32px;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                color: #8b949e;
-                transition: transform 0.3s ease;
-            }
-
-            .chart-legend.collapsed .legend-toggle {
-                transform: translateY(-50%) rotate(180deg);
-            }
+        .chart-legend.collapsed {
+            transform: translateX(calc(-100% + 20px));
         }
 
-        @media (min-width: 641px) {
-            .legend-toggle {
-                display: none;
-            }
+        .legend-toggle {
+            display: flex;
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 32px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #8b949e;
+            transition: transform 0.3s ease;
+        }
+
+        .chart-legend.collapsed .legend-toggle {
+            transform: translateY(-50%) rotate(180deg);
         }
 
         .loading,
@@ -390,6 +343,7 @@
             z-index: 10;
             pointer-events: none;
         }
+
     </style>
 </head>
 <body>
@@ -405,8 +359,7 @@
                     <button class="seg active" data-value="net">Net</button>
                     <button class="seg" data-value="separate">Calls/Puts</button>
                 </div>
-                <span class="separator"></span>
-                <button id="center-btn" title="Center on current price">
+                <button id="center-btn" title="Center on current price" style="margin-left: auto;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="8"></circle>
                         <line x1="12" y1="2" x2="12" y2="6"></line>
@@ -423,7 +376,6 @@
                         <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
                     </svg>
                 </button>
-                <span class="timestamp" id="timestamp"></span>
             </div>
 
             <!-- Mobile controls -->
@@ -465,10 +417,6 @@
                         <button class="seg" data-value="separate">Calls/Puts</button>
                     </div>
                 </div>
-                <div>
-                    <div class="menu-label">Updated</div>
-                    <span class="timestamp" id="timestamp-mobile"></span>
-                </div>
             </div>
         </div>
         <div id="content">
@@ -477,7 +425,7 @@
     </div>
 
 <script>
-const WORKER_URL = 'https://gex.v-agejevas.workers.dev';
+const WORKER_URL = 'https://gex.va42.workers.dev';
 
 class GEX {
     constructor(ticker, date) {
@@ -485,7 +433,6 @@ class GEX {
         this.date = date;
         this.currentPrice = null;
         this.timestamp = null;
-        this.lastTradeTime = null;
         this.options = [];
         this.options0dte = [];
     }
@@ -508,11 +455,6 @@ class GEX {
 
         this.currentPrice = quotes.data.current_price;
         this.timestamp = quotes.timestamp;
-        this.lastTradeTime = quotes.data.options
-            .map(o => o.last_trade_time)
-            .filter(Boolean)
-            .sort()
-            .pop() || null;
 
         this.options = quotes.data.options.map(opt => ({
             ...opt,
@@ -638,7 +580,7 @@ class StrikeChart {
 
     createChart() {
         this.chart = LightweightCharts.createChart(this.container, {
-            layout: { background: { color: '#161b22' }, textColor: '#8b949e' },
+            layout: { background: { color: '#161b22' }, textColor: '#8b949e', attributionLogo: false },
             grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
             width: this.container.clientWidth,
             height: this.container.clientHeight || 640,
@@ -678,7 +620,7 @@ class StrikeChart {
     }
 
     setNetData(data) {
-        this.markerSeries = this.chart.addHistogramSeries(this.histogramOpts());
+        this.markerSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts());
         this.markerSeries.setData(data.map(d => ({
             time: this.strikeIdx[d.strike],
             value: d.value,
@@ -687,8 +629,8 @@ class StrikeChart {
     }
 
     setCallsPutsData(data) {
-        const callSeries = this.chart.addHistogramSeries(this.histogramOpts('#1990ff'));
-        const putSeries = this.chart.addHistogramSeries(this.histogramOpts('#ff0f3f'));
+        const callSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts('#1990ff'));
+        const putSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts('#ff0f3f'));
 
         callSeries.setData(data.calls.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
         putSeries.setData(data.puts.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
@@ -708,7 +650,7 @@ class StrikeChart {
         const maxVal = Math.max(...this.allData.map(d => Math.abs(d.value)), 0.1);
         const lineExtent = maxVal * 100;
 
-        const priceLine = this.chart.addLineSeries({
+        const priceLine = this.chart.addSeries(LightweightCharts.LineSeries, {
             color: '#ffffff',
             lineWidth: 1,
             lineStyle: 2,
@@ -769,16 +711,13 @@ function createChart(container, data, currentPrice, mode) {
     return chart;
 }
 
-function formatTimestamp(str, toLocal = false) {
-    const date = new Date(str.replace(' ', 'T') + '-05:00');
-    const formatted = date.toLocaleString('sv').replace('T', ' ');
-    if (!toLocal) return formatted;
-
+function formatTimestamp(str) {
+    const date = new Date(str.replace(' ', 'T') + 'Z');
     const offset = -date.getTimezoneOffset();
     const h = Math.floor(Math.abs(offset) / 60);
     const m = Math.abs(offset) % 60;
     const tz = `UTC${offset >= 0 ? '+' : '-'}${h}${m ? ':' + String(m).padStart(2, '0') : ''}`;
-    return `${formatted} ${tz}`;
+    return `${date.toLocaleString('sv').replace('T', ' ')} ${tz}`;
 }
 
 function getTradingDay() {
@@ -796,7 +735,6 @@ function renderDashboard(gex, mode) {
     const summary = gex.getSummary(mode);
     const fmt = n => (n >= 0 ? '+' : '') + n.toFixed(2);
     const cls = n => n >= 0 ? 'positive' : 'negative';
-    const lastTrade = gex.lastTradeTime ? formatTimestamp(gex.lastTradeTime, true) : 'N/A';
 
     // Update both desktop and mobile tabs
     const tabsHtml = `
@@ -806,13 +744,10 @@ function renderDashboard(gex, mode) {
     document.getElementById('tabs').innerHTML = tabsHtml;
     document.getElementById('tabs-mobile').innerHTML = tabsHtml;
 
-    // Update both timestamps
-    const tsDesktop = `CBOE: ${gex.timestamp} ET | Local: ${formatTimestamp(gex.timestamp, true)}`;
-    const tsMobile = formatTimestamp(gex.timestamp, true);
-    document.getElementById('timestamp').textContent = tsDesktop;
-    document.getElementById('timestamp-mobile').textContent = tsMobile;
-
+    const timestamp = formatTimestamp(gex.timestamp);
     const toggleBtn = `<div class="legend-toggle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>`;
+
+    const clockIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
 
     const legend = data => mode === 'net'
         ? `<div class="chart-legend">
@@ -824,7 +759,7 @@ function renderDashboard(gex, mode) {
                 <span class="${cls(data.total)}" style="font-weight:600">${fmt(data.total)}B</span>
                 <span class="muted">(${fmt(data.below)} / ${fmt(data.above)})</span>
             </div>
-            <span class="muted legend-time">Last: ${lastTrade}</span>
+            <span class="muted">${clockIcon} ${timestamp}</span>
             ${toggleBtn}
            </div>`
         : `<div class="chart-legend">
@@ -836,7 +771,7 @@ function renderDashboard(gex, mode) {
                 <span class="positive" style="font-weight:600">+${data.calls.toFixed(2)}B</span>
                 <span class="negative" style="font-weight:600">-${data.puts.toFixed(2)}B</span>
             </div>
-            <span class="muted legend-time">Last: ${lastTrade}</span>
+            <span class="muted">${clockIcon} ${timestamp}</span>
             ${toggleBtn}
            </div>`;
 
