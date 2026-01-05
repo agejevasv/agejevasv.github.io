@@ -27,7 +27,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 8px 12px;
+            padding: 4px 12px;
             background: #161b22;
             border: 1px solid #30363d;
             border-radius: 8px;
@@ -332,15 +332,14 @@
 
         .x-axis-marker {
             position: absolute;
-            bottom: 5px;
+            bottom: 4px;
             transform: translateX(-50%);
             background: #ffffff;
-            color: #0d1117;
+            color: #131722;
             font-size: 12px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 3px;
-            z-index: 10;
+            line-height: 20px;
+            padding: 3px 8px 0;
+            z-index: 1;
             pointer-events: none;
         }
 
@@ -597,15 +596,19 @@ class StrikeChart {
         });
     }
 
-    buildStrikeIndex(data, mode) {
-        const allData = mode === 'net' ? data.net : [...data.calls, ...data.puts];
-        this.strikes = [...new Set(allData.map(d => d.strike))].sort((a, b) => a - b);
+    buildStrikeIndex(currentPrice) {
+        // Pre-generate strikes from 0 to 2x current price, step 5
+        const max = Math.round(currentPrice * 2 / 5) * 5;
+        this.strikes = [];
+        for (let s = 0; s <= max; s += 5) {
+            this.strikes.push(s);
+        }
         this.strikeIdx = Object.fromEntries(this.strikes.map((s, i) => [s, i]));
-        this.allData = allData;
     }
 
-    setData(data, mode) {
-        this.buildStrikeIndex(data, mode);
+    setData(data, mode, currentPrice) {
+        this.buildStrikeIndex(currentPrice);
+        this.allData = mode === 'net' ? data.net : [...data.calls, ...data.puts];
         this.createChart();
         mode === 'net' ? this.setNetData(data.net) : this.setCallsPutsData(data);
     }
@@ -620,20 +623,23 @@ class StrikeChart {
     }
 
     setNetData(data) {
+        const dataMap = Object.fromEntries(data.map(d => [d.strike, d.value]));
         this.markerSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts());
-        this.markerSeries.setData(data.map(d => ({
-            time: this.strikeIdx[d.strike],
-            value: d.value,
-            color: d.value >= 0 ? '#1990ff' : '#ff0f3f'
-        })));
+        this.markerSeries.setData(this.strikes.map((strike, i) => {
+            const value = dataMap[strike] || 0;
+            return { time: i, value, color: value >= 0 ? '#1990ff' : '#ff0f3f' };
+        }));
     }
 
     setCallsPutsData(data) {
+        const callMap = Object.fromEntries(data.calls.map(d => [d.strike, d.value]));
+        const putMap = Object.fromEntries(data.puts.map(d => [d.strike, d.value]));
+
         const callSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts('#1990ff'));
         const putSeries = this.chart.addSeries(LightweightCharts.HistogramSeries, this.histogramOpts('#ff0f3f'));
 
-        callSeries.setData(data.calls.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
-        putSeries.setData(data.puts.map(d => ({ time: this.strikeIdx[d.strike], value: d.value })));
+        callSeries.setData(this.strikes.map((strike, i) => ({ time: i, value: callMap[strike] || 0 })));
+        putSeries.setData(this.strikes.map((strike, i) => ({ time: i, value: putMap[strike] || 0 })));
 
         this.markerSeries = callSeries;
     }
@@ -706,7 +712,7 @@ class StrikeChart {
 
 function createChart(container, data, currentPrice, mode) {
     const chart = new StrikeChart(container);
-    chart.setData(data, mode);
+    chart.setData(data, mode, currentPrice);
     chart.addPriceMarker(currentPrice);
     return chart;
 }
