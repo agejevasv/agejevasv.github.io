@@ -85,7 +85,8 @@
         .tab.active,
         .seg.active { background: #1990ff; color: #fff; }
 
-        #fetch-btn {
+        #fetch-btn,
+        #center-btn {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -100,7 +101,8 @@
             transition: all 0.15s;
         }
 
-        #fetch-btn:hover { background: #30363d; border-color: #8b949e; }
+        #fetch-btn:hover,
+        #center-btn:hover { background: #30363d; border-color: #8b949e; }
         #fetch-btn:disabled { background: #161b22; color: #484f58; cursor: not-allowed; border-color: #21262d; }
 
         #content {
@@ -200,6 +202,20 @@
             50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
             100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
         }
+
+        .x-axis-marker {
+            position: absolute;
+            bottom: 5px;
+            transform: translateX(-50%);
+            background: #ffffff;
+            color: #0d1117;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            z-index: 10;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -213,6 +229,15 @@
                 <button class="seg" data-value="separate">Calls/Puts</button>
             </div>
             <span class="separator"></span>
+            <button id="center-btn" title="Center on current price">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                </svg>
+            </button>
             <button id="fetch-btn" title="Refresh data">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 2v6h-6"></path>
@@ -463,13 +488,17 @@ class StrikeChart {
     }
 
     centerOnStrike(strikeIdx) {
-        this.chart.timeScale().setVisibleRange({
-            from: Math.max(0, strikeIdx - 250),
-            to: Math.min(this.strikes.length - 1, strikeIdx + 250)
+        const halfRange = 100;
+        this.chart.timeScale().setVisibleLogicalRange({
+            from: strikeIdx - halfRange,
+            to: strikeIdx + halfRange
         });
     }
 
     addVerticalLine(strikeIdx) {
+        const maxVal = Math.max(...this.allData.map(d => Math.abs(d.value)), 0.1);
+        const lineExtent = maxVal * 100;
+
         const priceLine = this.chart.addLineSeries({
             color: '#ffffff',
             lineWidth: 1,
@@ -477,14 +506,15 @@ class StrikeChart {
             priceLineVisible: false,
             lastValueVisible: false,
             crosshairMarkerVisible: false,
-            priceScaleId: 'price-marker'
+            priceScaleId: 'right',
+            autoscaleInfoProvider: () => ({
+                priceRange: { minValue: -maxVal * 1.1, maxValue: maxVal * 1.1 }
+            })
         });
-        this.chart.priceScale('price-marker').applyOptions({ visible: false });
 
-        const maxVal = Math.max(...this.allData.map(d => Math.abs(d.value)), 0.1);
         priceLine.setData([
-            { time: strikeIdx, value: -maxVal },
-            { time: strikeIdx, value: maxVal }
+            { time: strikeIdx, value: -lineExtent },
+            { time: strikeIdx, value: lineExtent }
         ]);
     }
 
@@ -495,18 +525,31 @@ class StrikeChart {
             Math.abs(b - price) < Math.abs(a - price) ? b : a
         );
         const idx = this.strikeIdx[closest];
+        this.priceStrikeIdx = idx;
 
         this.centerOnStrike(idx);
         this.addVerticalLine(idx);
+        this.addXAxisLabel(idx, price);
+    }
 
-        this.markerSeries.setMarkers([{
-            time: idx,
-            position: 'aboveBar',
-            color: '#ffffff',
-            shape: 'arrowDown',
-            text: price.toFixed(0),
-            size: 2
-        }]);
+    addXAxisLabel(strikeIdx, price) {
+        const label = document.createElement('div');
+        label.className = 'x-axis-marker';
+        label.textContent = price.toFixed(0);
+        this.container.appendChild(label);
+
+        const updatePosition = () => {
+            const x = this.chart.timeScale().logicalToCoordinate(strikeIdx);
+            if (x === null) {
+                label.style.display = 'none';
+            } else {
+                label.style.display = 'block';
+                label.style.left = x + 'px';
+            }
+        };
+
+        requestAnimationFrame(updatePosition);
+        this.chart.timeScale().subscribeVisibleLogicalRangeChange(updatePosition);
     }
 }
 
@@ -585,7 +628,7 @@ function renderDashboard(gex, mode) {
     const gexData = gex.getByStrike('gex', mode);
     const vexData = gex.getByStrike('vex', mode);
 
-    createChart(document.getElementById('chart-oi'), gexData, gex.currentPrice, mode);
+    activeCharts.oi = createChart(document.getElementById('chart-oi'), gexData, gex.currentPrice, mode);
 
     let volChartCreated = false;
     document.querySelectorAll('#tabs .tab').forEach(tab => {
@@ -596,7 +639,7 @@ function renderDashboard(gex, mode) {
             document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
 
             if (tab.dataset.tab === 'vol' && !volChartCreated) {
-                createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
+                activeCharts.vol = createChart(document.getElementById('chart-vol'), vexData, gex.currentPrice, mode);
                 volChartCreated = true;
             }
         });
@@ -604,6 +647,14 @@ function renderDashboard(gex, mode) {
 }
 
 let currentGex = null;
+let activeCharts = { oi: null, vol: null };
+
+function recenterCharts() {
+    if (!currentGex) return;
+    Object.values(activeCharts).forEach(chart => {
+        if (chart) chart.centerOnStrike(chart.priceStrikeIdx);
+    });
+}
 
 async function fetchAndRender() {
     const btn = document.getElementById('fetch-btn');
@@ -635,6 +686,7 @@ function onModeChange() {
 }
 
 document.getElementById('fetch-btn').addEventListener('click', fetchAndRender);
+document.getElementById('center-btn').addEventListener('click', recenterCharts);
 
 document.getElementById('view-mode').addEventListener('click', e => {
     const btn = e.target.closest('.seg');
