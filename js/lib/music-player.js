@@ -26,7 +26,9 @@ class MusicPlayer {
         this.createPlayer();
         this.addTrackNumbers();
         this.bindEvents();
-        this.loadDurations();
+        if (!/Firefox/i.test(navigator.userAgent)) {
+            requestIdleCallback(() => this.loadDurations(), { timeout: 3000 });
+        }
     }
 
     createPlayer() {
