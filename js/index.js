@@ -1,4 +1,6 @@
-// Preload cache for SPA navigation
+import { initMusicPlayer, stopMusicPlayer } from './music-player.js';
+import './animation.js';
+
 const pageCache = {};
 const pagesToPreload = ['/index.html', '/projects.html', '/music.html', '/writing.html'];
 
@@ -18,43 +20,38 @@ if ('requestIdleCallback' in window) {
     setTimeout(preloadPages, 200);
 }
 
-// SPA-like navigation
-document.addEventListener('click', async (e) => {
+async function navigateTo(url) {
+    stopMusicPlayer();
+    const html = pageCache[url] || await fetch(url).then(r => r.text());
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    document.querySelector('.tab-content-wrapper').replaceWith(doc.querySelector('.tab-content-wrapper'));
+    document.querySelector('.tab-nav').replaceWith(doc.querySelector('.tab-nav'));
+    document.title = doc.title;
+    initMusicPlayer();
+}
+
+document.addEventListener('click', async e => {
     const link = e.target.closest('.tab-nav a');
     if (!link) return;
-
     e.preventDefault();
     const href = link.getAttribute('href');
     const url = href === '/' ? '/index.html' : href + '.html';
-
     try {
-        const html = pageCache[url] || await fetch(url).then(r => r.text());
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        const newContent = doc.querySelector('.tab-content-wrapper');
-        const newNav = doc.querySelector('.tab-nav');
-
-        document.querySelector('.tab-content-wrapper').replaceWith(newContent);
-        document.querySelector('.tab-nav').replaceWith(newNav);
-        document.title = doc.title;
-
+        await navigateTo(url);
         history.pushState({}, '', href);
-    } catch (err) {
+    } catch {
         window.location.href = href;
     }
 });
 
 window.addEventListener('popstate', async () => {
-    const href = window.location.pathname;
-    const url = href === '/' || href === '' ? '/index.html' : href + '.html';
-
+    const path = window.location.pathname;
+    const url = path === '/' || path === '' ? '/index.html' : path + '.html';
     try {
-        const html = pageCache[url] || await fetch(url).then(r => r.text());
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        document.querySelector('.tab-content-wrapper').replaceWith(doc.querySelector('.tab-content-wrapper'));
-        document.querySelector('.tab-nav').replaceWith(doc.querySelector('.tab-nav'));
-        document.title = doc.title;
+        await navigateTo(url);
     } catch {
         window.location.reload();
     }
 });
+
+initMusicPlayer();

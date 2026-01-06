@@ -74,7 +74,7 @@ func bundleJS(entryPoints []string, outfile string) error {
 		MinifyWhitespace:  true,
 		MinifyIdentifiers: true,
 		MinifySyntax:      true,
-		Target:            api.ES2020,
+		Target:            api.ES2022,
 	})
 
 	if len(result.Errors) > 0 {
@@ -97,7 +97,7 @@ func bundleESM(entryPoint string, outfile string) error {
 		Outfile:           outfile,
 		Write:             true,
 		Format:            api.FormatESModule,
-		Target:            api.ES2020,
+		Target:            api.ES2022,
 	})
 
 	if len(result.Errors) > 0 {
@@ -140,10 +140,10 @@ func main() {
 		log.Fatalf("Failed to create js directory: %v", err)
 	}
 
-	if err := bundleJS([]string{"js/index.js", "js/animation.js"}, filepath.Join(outDir, "js/bundle.js")); err != nil {
+	if err := bundleESM("js/index.js", filepath.Join(outDir, "js/bundle.js")); err != nil {
 		log.Fatalf("Failed to bundle main JS: %v", err)
 	}
-	log.Printf("Bundled js/index.js + js/animation.js → js/bundle.js")
+	log.Printf("Bundled js/*.js → js/bundle.js")
 
 	// ESM format required for dynamic import()
 	if err := os.MkdirAll(filepath.Join(outDir, "js/pixijs"), 0755); err != nil {
@@ -222,6 +222,11 @@ func main() {
 		log.Fatalf("Failed to copy fonts directory: %v", err)
 	}
 	log.Printf("Copied fonts/")
+
+	if err := copyDir("music", filepath.Join(outDir, "music")); err != nil {
+		log.Fatalf("Failed to copy music directory: %v", err)
+	}
+	log.Printf("Copied music/")
 
 	if err := buildGexProject(); err != nil {
 		log.Fatalf("Failed to build gex project: %v", err)
