@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -47,7 +48,6 @@ var pages = []struct {
 
 var staticFiles = []string{
 	"static/github-download-stats.html",
-	"static/gex.html",
 	"static/google2fe609a678bc07c0.html",
 }
 
@@ -223,6 +223,10 @@ func main() {
 	}
 	log.Printf("Copied fonts/")
 
+	if err := buildGexProject(); err != nil {
+		log.Fatalf("Failed to build gex project: %v", err)
+	}
+
 	generateVersionFile()
 	generateSitemap()
 
@@ -312,4 +316,72 @@ func copyDir(src, dst string) error {
 
 		return copyFile(path, dstPath)
 	})
+}
+
+func gitClone(repo, dest string) error {
+	cmd := exec.Command("git", "clone", "--depth", "1", repo, dest)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func buildGexProject() error {
+	gexSrcDir := filepath.Join(os.TempDir(), "gex-build")
+	gexOutDir := filepath.Join(outDir, "gex")
+	analyticsTag := `<script data-goatcounter="https://va42.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>`
+
+	// Clone gex repository
+	os.RemoveAll(gexSrcDir)
+	if err := gitClone("https://github.com/agejevasv/gex.git", gexSrcDir); err != nil {
+		return fmt.Errorf("failed to clone gex repository: %w", err)
+	}
+	defer os.RemoveAll(gexSrcDir)
+
+	os.RemoveAll(gexOutDir)
+
+	if err := os.MkdirAll(filepath.Join(gexOutDir, "css"), 0755); err != nil {
+		return fmt.Errorf("failed to create gex/css directory: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(gexOutDir, "js"), 0755); err != nil {
+		return fmt.Errorf("failed to create gex/js directory: %w", err)
+	}
+
+	cssContent, err := os.ReadFile(filepath.Join(gexSrcDir, "css/style.css"))
+	if err != nil {
+		return fmt.Errorf("failed to read gex CSS: %w", err)
+	}
+	minifiedCSS, err := minifyCSS(string(cssContent))
+	if err != nil {
+		return fmt.Errorf("failed to minify gex CSS: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(gexOutDir, "css/style.css"), []byte(minifiedCSS), 0644); err != nil {
+		return fmt.Errorf("failed to write minified gex CSS: %w", err)
+	}
+	log.Printf("Minified %s/css/style.css: %d → %d bytes", gexSrcDir, len(cssContent), len(minifiedCSS))
+
+	if err := bundleESM(filepath.Join(gexSrcDir, "js/index.js"), filepath.Join(gexOutDir, "js/index.js")); err != nil {
+		return fmt.Errorf("failed to bundle gex JS: %w", err)
+	}
+
+	jsContent, err := os.ReadFile(filepath.Join(gexOutDir, "js/index.js"))
+	if err != nil {
+		return fmt.Errorf("failed to read bundled JS: %w", err)
+	}
+	jsWithConfig := strings.Replace(string(jsContent), "<YOUR_API_PROXY>", "https://gex.va42.workers.dev", 1)
+	if err := os.WriteFile(filepath.Join(gexOutDir, "js/index.js"), []byte(jsWithConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write JS with config: %w", err)
+	}
+	log.Printf("Bundled %s/js/*.js → gex/js/index.js", gexSrcDir)
+
+	htmlContent, err := os.ReadFile(filepath.Join(gexSrcDir, "index.html"))
+	if err != nil {
+		return fmt.Errorf("failed to read gex HTML: %w", err)
+	}
+	htmlWithAnalytics := strings.Replace(string(htmlContent), "<!-- ANALYTICS -->", analyticsTag, 1)
+	if err := os.WriteFile(filepath.Join(gexOutDir, "index.html"), []byte(htmlWithAnalytics), 0644); err != nil {
+		return fmt.Errorf("failed to write gex HTML: %w", err)
+	}
+	log.Printf("Copied %s/index.html → gex/index.html (with analytics)", gexSrcDir)
+
+	return nil
 }
