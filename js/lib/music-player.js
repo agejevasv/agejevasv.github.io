@@ -101,7 +101,6 @@ class MusicPlayer {
                 this.timeDisplay.textContent = `0:00 / ${this.formatTime(this.currentSound.duration())}`;
             }
         });
-        window.musicPlayerSound = this.currentSound;
     }
 
     setPlaying(playing) {
@@ -165,42 +164,22 @@ class MusicPlayer {
             };
         });
     }
-
-    destroy() {
-        if (this.currentSound) {
-            this.currentSound.unload();
-            this.currentSound = null;
-        }
-    }
 }
 
-let playerInstance = null;
-
-export function initMusicPlayer() {
-    const trackList = document.querySelector('ul:has(a[href$=".webm"])');
-    if (!trackList) return;
-
+function loadHowlerAndInit(trackList) {
     if (window.Howl) {
-        stopMusicPlayer();
-        playerInstance = new MusicPlayer(trackList);
+        new MusicPlayer(trackList);
     } else {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js';
-        script.onload = () => {
-            stopMusicPlayer();
-            playerInstance = new MusicPlayer(trackList);
-        };
+        script.onload = () => new MusicPlayer(trackList);
         document.head.appendChild(script);
     }
 }
 
-export function stopMusicPlayer() {
-    if (playerInstance) {
-        playerInstance.destroy();
-        playerInstance = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const trackList = document.querySelector('ul:has(a[href$=".webm"])');
+    if (trackList) {
+        loadHowlerAndInit(trackList);
     }
-    if (window.musicPlayerSound) {
-        window.musicPlayerSound.unload();
-        window.musicPlayerSound = null;
-    }
-}
+});

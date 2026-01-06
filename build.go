@@ -140,7 +140,7 @@ func main() {
 		log.Fatalf("Failed to create js directory: %v", err)
 	}
 
-	if err := bundleESM("js/index.js", filepath.Join(outDir, "js/bundle.js")); err != nil {
+	if err := bundleESM("js/application.js", filepath.Join(outDir, "js/bundle.js")); err != nil {
 		log.Fatalf("Failed to bundle main JS: %v", err)
 	}
 	log.Printf("Bundled js/*.js → js/bundle.js")
