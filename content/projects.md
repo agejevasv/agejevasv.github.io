@@ -38,7 +38,7 @@ A Docker-based wrapper for running Claude Code in an isolated, containerized env
 
 A simple tool to check download statistics for GitHub releases.
 
-- [View an example for Goradion](https://agejevasv.github.io/github-download-stats?owner=agejevasv&repo=goradion)
+- [View an example for Goradion](/github-download-stats?owner=agejevasv&repo=goradion)
 
 ---
 
@@ -46,7 +46,8 @@ A simple tool to check download statistics for GitHub releases.
 
 SPX 0DTE gamma exposure chart. Fetches data from CBOE (15 min delay) and displays GEX by strike price.
 
-- [View](https://agejevasv.github.io/gex)
+- [Open Application](/gex)
+- [View on GitHub](https://github.com/agejevasv/gex)
 
 ---
 

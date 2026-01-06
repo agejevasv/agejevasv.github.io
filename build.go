@@ -272,6 +272,10 @@ func generateSitemap() {
 		sitemap.WriteString(url + "\n")
 	}
 
+	// Add additional pages
+	sitemap.WriteString(siteURL + "/github-download-stats\n")
+	sitemap.WriteString(siteURL + "/gex\n")
+
 	sitemapPath := filepath.Join(outDir, "sitemap.txt")
 	if err := os.WriteFile(sitemapPath, sitemap.Bytes(), 0644); err != nil {
 		log.Printf("Warning: Failed to write sitemap.txt: %v", err)
