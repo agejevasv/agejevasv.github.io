@@ -1,6 +1,6 @@
 /*
 
-Audio ir waveform file preparation:
+Audio, waveform pngs and durations:
 
 for f in *.wav *.mp3 *.ogg *.flac; do
   [ -f "$f" ] || continue
@@ -11,6 +11,14 @@ for f in music/webm/*.webm; do
   name=$(basename "$f" .webm)
   ffmpeg -i "$f" -filter_complex "showwavespic=s=1600x200:colors=#6366f1" -y "/tmp/${name}.png"
   convert "/tmp/${name}.png" -trim -resize 1600x120\! "music/waveforms/${name}.png"
+done
+
+for f in music/webm/*.webm; do
+  name=$(basename "$f" .webm)
+  title=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+  dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
+  mins=$(echo "$dur" | awk '{m=int($1/60); s=int($1%60); printf "%d:%02d", m, s}')
+  echo "- [$title](music/webm/$name.webm) $mins"
 done
 
 */
@@ -25,10 +33,8 @@ class MusicPlayer {
 
         this.createPlayer();
         this.addTrackNumbers();
+        this.addDurations();
         this.bindEvents();
-        if (!/Firefox/i.test(navigator.userAgent)) {
-            requestIdleCallback(() => this.loadDurations(), { timeout: 3000 });
-        }
     }
 
     createPlayer() {
@@ -150,20 +156,20 @@ class MusicPlayer {
         });
     }
 
-    loadDurations() {
+    addDurations() {
         this.tracks.forEach(li => {
             const link = li.querySelector('a');
             if (!link) return;
 
-            const audio = new Audio();
-            audio.preload = 'metadata';
-            audio.src = link.href;
-            audio.onloadedmetadata = () => {
+            const text = li.textContent;
+            const match = text.match(/(\d+:\d+)$/);
+            if (match) {
+                link.nextSibling?.remove();
                 const duration = document.createElement('span');
                 duration.className = 'track-duration';
-                duration.textContent = this.formatTime(audio.duration);
+                duration.textContent = match[1];
                 li.appendChild(duration);
-            };
+            }
         });
     }
 }
