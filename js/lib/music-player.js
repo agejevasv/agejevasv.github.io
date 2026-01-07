@@ -45,6 +45,7 @@ class MusicPlayer {
                 <div id="now-playing"></div>
                 <span id="time-display"></span>
             </div>
+            <div id="player-sentinel"></div>
             <div id="player-controls">
                 <button id="play-btn">▶</button>
                 <div id="progress-container"><div id="progress-bar"></div></div>
@@ -52,6 +53,8 @@ class MusicPlayer {
         `;
         this.trackList.parentNode.insertBefore(this.player, this.trackList);
         this.player.appendChild(this.trackList);
+
+        this.setupStickyObserver();
 
         this.playBtn = document.getElementById('play-btn');
         this.nowPlaying = document.getElementById('now-playing');
@@ -171,6 +174,21 @@ class MusicPlayer {
                 li.appendChild(duration);
             }
         });
+    }
+
+    setupStickyObserver() {
+        const sentinel = document.getElementById('player-sentinel');
+        const controls = document.getElementById('player-controls');
+        const scrollContainer = this.player.closest('.tab-content');
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                controls.classList.toggle('stuck', !entry.isIntersecting);
+            },
+            { root: scrollContainer, threshold: 0 }
+        );
+
+        observer.observe(sentinel);
     }
 }
 

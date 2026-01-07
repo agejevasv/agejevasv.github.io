@@ -125,12 +125,17 @@ body.fonts-loaded {
     inset: 0;
     display: flex;
     flex-direction: column;
-    padding: 2rem 10vw 8vh;
+    padding: 0 10vw 8vh;
+    padding-top: 0;
     opacity: 0;
     visibility: hidden;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.tab-content > *:first-child {
+    margin-top: 2rem;
 }
 
 .tab-content::-webkit-scrollbar {
@@ -733,7 +738,11 @@ body.fonts-loaded {
     }
 
     .tab-content {
-        padding: 3vh 6vw 6vh;
+        padding: 0 6vw 6vh;
+    }
+
+    .tab-content > *:first-child {
+        margin-top: 3vh;
     }
 
     #about-content {
@@ -833,6 +842,11 @@ body.fonts-loaded {
 #music-player:not(.playing) #now-playing:not(:empty)::before { content: "Paused: "; }
 #now-playing:empty::before { content: "\00a0"; }
 
+#player-sentinel {
+    height: 0;
+    visibility: hidden;
+}
+
 #player-controls {
     display: flex;
     align-items: center;
@@ -845,6 +859,12 @@ body.fonts-loaded {
     position: sticky;
     top: 0;
     z-index: 10;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+#player-controls.stuck {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 #play-btn {
