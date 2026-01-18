@@ -1,0 +1,20 @@
+#!/bin/bash
+
+for f in ./*; do
+  [ -f "$f" ] || continue
+  ffmpeg -i "$f" -af "adelay=500:all=1" -b:a 320k -dash 1 "../webm/${f%.*}.webm" -y
+done
+
+for f in webm/*.webm; do
+  name=$(basename "$f" .webm)
+  ffmpeg -i "$f" -filter_complex "showwavespic=s=1600x200:colors=#6366f1" -y "/tmp/${name}.png"
+  convert "/tmp/${name}.png" -trim -resize 1600x120\! "waveforms/${name}.png"
+done
+
+for f in webm/*.webm; do
+  name=$(basename "$f" .webm)
+  title=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
+  dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
+  mins=$(echo "$dur" | awk '{m=int($1/60); s=int($1%60); printf "%d:%02d", m, s}')
+  echo "- [$title](https://agejevasv.github.io/webm/$name.webm) $mins"
+done
