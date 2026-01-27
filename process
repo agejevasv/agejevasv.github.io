@@ -5,7 +5,8 @@ mkdir -p out
 
 for f in in/*; do
   [ -f "$f" ] || continue
-  ffmpeg -i "$f" -af "adelay=500:all=1" -b:a 320k -dash 1 "out/${f##*/}.webm" -y
+  name=${f##*/}
+  ffmpeg -i "$f" -af "adelay=500:all=1" -b:a 320k -dash 1 "out/${name%.*}.webm" -y
 done
 
 for f in out/*.webm; do
@@ -21,6 +22,6 @@ for f in out/*.webm; do
   title=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)}1')
   dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
   mins=$(echo "$dur" | awk '{m=int($1/60); s=int($1%60); printf "%d:%02d", m, s}')
-  mv "$f" ../webm/
+  mv "$f" webm/
   echo "- [$title](https://agejevasv.github.io/webm/$name.webm) $mins"
 done
